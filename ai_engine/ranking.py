@@ -1,96 +1,62 @@
-# ============================================================
-# ranking.py - Candidate Ranking Module
-# Programmer 2: AI Similarity & Candidate Ranking Module
-# ============================================================
-# This file takes similarity scores for all candidates
-# and ranks them from best match to lowest match.
-# ============================================================
 
-import pandas as pd  # Pandas is used to create nice tables (DataFrames)
 
+import pandas as pd
 
 def rank_candidates(candidate_scores):
     """
-    Ranks candidates based on their similarity scores.
-
+    Ranks candidates based on their similarity scores in descending order.
+    
     Parameters:
-        candidate_scores (dict): A dictionary where:
-            - key   = candidate name (str)
-            - value = similarity score (float, percentage)
-
-        Example:
-            {
-                "Alice_Resume.pdf": 85.5,
-                "Bob_Resume.pdf": 62.3,
-                "Charlie_Resume.pdf": 91.0
-            }
-
+        candidate_scores (dict): A dictionary where keys are candidate names (e.g. file names)
+                                 and values are similarity scores (floats between 0.0 and 1.0).
+                                 Example: {'John_Doe.pdf': 0.825, 'Jane_Smith.pdf': 0.412}
+                                 
     Returns:
-        pandas.DataFrame: A ranked table with columns:
-            - Rank
-            - Candidate Name
-            - Match Score (%)
+        pd.DataFrame: A Pandas DataFrame containing columns:
+                      - Rank (int)
+                      - Candidate Name (str)
+                      - Similarity Score (float)
+                      - Match Percentage (str, e.g. "82.50%")
     """
-
-    # Safety check - return empty DataFrame if no data
+    # Guard against empty input
     if not candidate_scores:
-        print("Warning: No candidate scores provided.")
-        return pd.DataFrame()
-
-    # Step 1: Convert dictionary to a Pandas DataFrame
-    # This creates a 2-column table: Candidate Name | Match Score (%)
-    df = pd.DataFrame(
-        list(candidate_scores.items()),
-        columns=["Candidate Name", "Match Score (%)"]
-    )
-
-    # Step 2: Sort candidates from highest score to lowest score
-    # ascending=False means highest first
-    df = df.sort_values(by="Match Score (%)", ascending=False)
-
-    # Step 3: Reset index so row numbers are clean (0, 1, 2...)
+        return pd.DataFrame(columns=['Rank', 'Candidate Name', 'Similarity Score', 'Match Percentage'])
+        
+    # Convert dictionary to list of tuples for processing
+    data = []
+    for candidate, score in candidate_scores.items():
+        # Match percentage is similarity score multiplied by 100
+        match_percentage = score * 100
+        data.append({
+            'Candidate Name': candidate,
+            'Similarity Score': round(score, 4),
+            'Match Percentage': f"{match_percentage:.2f}%",
+            '_score_sort': score # Hidden column for sorting
+        })
+        
+    # Create Pandas DataFrame
+    df = pd.DataFrame(data)
+    
+    # Sort DataFrame by similarity score in descending order
+    df = df.sort_values(by='_score_sort', ascending=False)
+    
+    # Drop the sorting column
+    df = df.drop(columns=['_score_sort'])
+    
+    # Reset index and add Rank column starting from 1
     df = df.reset_index(drop=True)
+    df.insert(0, 'Rank', df.index + 1)
+    
+    return df
 
-    # Step 4: Add a Rank column (1st, 2nd, 3rd...)
-    df.insert(0, "Rank", range(1, len(df) + 1))
-
-    return df  # Return ranked table
-
-
-def get_top_candidates(candidate_scores, top_n=3):
-    """
-    Returns the top N ranked candidates.
-
-    Parameters:
-        candidate_scores (dict): Dictionary of candidate names and scores.
-        top_n (int): Number of top candidates to return. Default is 3.
-
-    Returns:
-        pandas.DataFrame: Top N candidates ranked.
-    """
-    ranked_df = rank_candidates(candidate_scores)
-
-    # Return only top N rows
-    return ranked_df.head(top_n)
-
-
-# -------------------------------------------------------
-# Testing ranking (only runs if this file is run directly)
-# -------------------------------------------------------
+# Self-testing block
 if __name__ == "__main__":
-    # Sample candidate scores
-    sample_scores = {
-        "Alice_Resume.pdf": 85.5,
-        "Bob_Resume.pdf": 62.3,
-        "Charlie_Resume.pdf": 91.0,
-        "Diana_Resume.pdf": 47.8,
-        "Eve_Resume.pdf": 78.2
+    print("Testing ranking.py...")
+    test_scores = {
+        'Alice_Python_CV.pdf': 0.7654,
+        'Bob_Java_CV.pdf': 0.2311,
+        'Charlie_Data_Scientist.pdf': 0.8943
     }
-
-    print("=== Full Candidate Rankings ===")
-    ranked = rank_candidates(sample_scores)
-    print(ranked.to_string(index=False))
-
-    print("\n=== Top 3 Candidates ===")
-    top3 = get_top_candidates(sample_scores, top_n=3)
-    print(top3.to_string(index=False))
+    ranked_df = rank_candidates(test_scores)
+    print("\nRanked Candidates DataFrame:")
+    print(ranked_df.to_string(index=False))
